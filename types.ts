@@ -39,6 +39,7 @@ export interface Player {
   position: string; // "SB", "BB", "BTN", etc.
   personality?: string; // For AI generation context
   avatarSeed?: number;
+  actionMessage?: string; // NEW: Bubble text (e.g. "Call 20")
 }
 
 export interface GameState {
@@ -56,6 +57,7 @@ export interface GameState {
   deckColor: string;
   winners?: Player[];         // NEW: Track who won the last hand
   winningHandDesc?: string;   // NEW: Description of winning hand (e.g. "Full House")
+  lastPotSize?: number;       // NEW: Amount won
 }
 
 export interface Perk {

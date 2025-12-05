@@ -27,8 +27,8 @@ export const getPokerAdvice = async (
   const boardStr = board.map(c => `${c.rank}${c.suit}`).join(',');
 
   const prompt = `
-    You are a world-class poker coach helping a beginner player in a Texas Hold'em game.
-    Analyze the current situation and provide the best move.
+    You are a world-class poker coach (channeling the wisdom of legends like Doyle Brunson, Daniel Negreanu, and Phil Ivey).
+    Analyze the current Texas Hold'em situation and provide the best move.
     
     Context:
     - Player Hand: [${handStr}]
@@ -41,7 +41,7 @@ export const getPokerAdvice = async (
     
     Provide the response in strict JSON format with the following keys:
     - action: "FOLD", "CHECK", "CALL", or "RAISE"
-    - reasoning: A short, witty, 2-sentence explanation of why, mentioning pot odds or position if relevant.
+    - reasoning: A short, witty, 2-sentence explanation. Try to channel the wisdom of poker legends or cite specific concepts like 'Gap Theory', 'Implied Odds', or 'Position' where relevant.
     - winProbability: An estimated percentage string (e.g., "45%").
     - potOdds: The pot odds expressed as a ratio (e.g., "3:1") if applicable.
   `;

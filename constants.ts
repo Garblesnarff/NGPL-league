@@ -17,13 +17,31 @@ export const AVATAR_URL = (seed: number) => `https://picsum.photos/seed/${seed}/
 
 export const FRIEND_NAMES = [
   "Nick",
-  "Cody",
-  "Rob",
   "Devin",
-  "Noah",
+  "Cody A",
+  "Cody",
   "Pat",
-  "Cody A"
+  "Noah",
+  "Rob"
 ];
+
+// 0.0 - 1.0 scales
+export interface BotPersonality {
+  vpip: number;      // Voluntarily Put Money In Pot (Looseness). High = plays many hands.
+  aggression: number; // Tendency to Raise vs Call. High = Raises often.
+  bluff: number;     // Tendency to bet with weak hands.
+  label: string;
+}
+
+export const BOT_PROFILES: Record<string, BotPersonality> = {
+  "Nick": { vpip: 0.15, aggression: 0.8, bluff: 0.2, label: "Tight-Aggressive" },
+  "Devin": { vpip: 0.50, aggression: 0.9, bluff: 0.8, label: "Wild Card" },
+  "Cody A": { vpip: 0.05, aggression: 0.2, bluff: 0.0, label: "The Rock" },
+  "Cody": { vpip: 0.60, aggression: 0.6, bluff: 0.6, label: "Loose Cannon" },
+  "Pat": { vpip: 0.30, aggression: 0.4, bluff: 0.3, label: "Rookie" },
+  "Noah": { vpip: 0.80, aggression: 0.1, bluff: 0.1, label: "Calling Station" },
+  "Rob": { vpip: 0.90, aggression: 0.9, bluff: 0.9, label: "Maniac" },
+};
 
 export const INITIAL_PERKS: Perk[] = [
   {
