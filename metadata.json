@@ -1,0 +1,5 @@
+{
+  "name": "NGPL League",
+  "description": "A Balatro-style Texas Hold'em trainer that uses AI to teach you pot odds, positioning, and strategy while you play through a rogue-lite campaign.",
+  "requestFramePermissions": []
+}
