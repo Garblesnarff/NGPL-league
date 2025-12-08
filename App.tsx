@@ -201,6 +201,7 @@ const DraggablePlayerWrapper: React.FC<{
 
 // --- Helper Components ---
 
+// Combined PlayerSpot: Handles Avatar and Dynamically Oriented Hand
 const PlayerSpot: React.FC<{ 
   player: Player; 
   isDealer: boolean; 
@@ -208,71 +209,117 @@ const PlayerSpot: React.FC<{
   cardsVisible: boolean;
   gamePhase: GamePhase;
   isWinner?: boolean;
-  reverseLayout?: boolean; // If true, cards below avatar (for top players)
-}> = ({ player, isDealer, isCurrentTurn, cardsVisible, gamePhase, isWinner, reverseLayout = false }) => {
-  const winnerGlow = isWinner ? 'ring-4 ring-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.6)] scale-110 z-20' : '';
+}> = ({ player, isDealer, isCurrentTurn, cardsVisible, gamePhase, isWinner }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const handRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let frameId: number;
+    
+    const updateOrientation = () => {
+      if (!containerRef.current || !handRef.current) return;
+      
+      const rect = containerRef.current.getBoundingClientRect();
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      
+      // Calculate center of player avatar
+      const playerX = rect.left + rect.width / 2;
+      const playerY = rect.top + rect.height / 2;
+      
+      // Calculate angle from player to center
+      const dx = centerX - playerX;
+      const dy = centerY - playerY;
+      const angle = Math.atan2(dy, dx);
+      
+      // Distance to place hand (radius from avatar center)
+      const radius = 95; // px
+      
+      const handX = Math.cos(angle) * radius;
+      const handY = Math.sin(angle) * radius;
+      
+      // Rotate cards to face center (perpendicular to radius vector)
+      // Angle + 90deg to orient bottom-to-top towards center
+      const rotation = angle + Math.PI / 2;
+
+      handRef.current.style.transform = `translate(${handX}px, ${handY}px) rotate(${rotation}rad)`;
+    };
+
+    const loop = () => {
+      updateOrientation();
+      frameId = requestAnimationFrame(loop);
+    };
+    
+    loop();
+    return () => cancelAnimationFrame(frameId);
+  }, []);
+
+  const winnerGlow = isWinner ? 'ring-4 ring-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.6)]' : '';
   const turnGlow = isCurrentTurn && !isWinner ? 'ring-2 ring-emerald-400 animate-pulse' : '';
   const foldOpacity = !player.isActive ? 'opacity-40 grayscale blur-[2px]' : '';
   
-  // Layout Order:
-  // Normal (Bottom players): Cards -> Avatar -> Info
-  // Reverse (Top players): Info -> Avatar -> Cards (Actually we just swap cards and avatar relative position)
-  
   return (
-    <div className={`relative flex flex-col items-center transition-all duration-500 ${foldOpacity} ${isWinner ? 'translate-y-[-10px]' : ''}`}>
-      {/* Action Bubble */}
-      {player.actionMessage && (
-        <div className="absolute -top-12 z-50 bg-white text-black font-bold text-xs px-3 py-2 rounded-xl rounded-bl-none shadow-[0_5px_15px_rgba(0,0,0,0.3)] animate-deal border-2 border-black whitespace-nowrap transform -rotate-2 origin-bottom-left pointer-events-none">
-          {player.actionMessage}
-        </div>
-      )}
-
-      <div className={`flex flex-col items-center ${reverseLayout ? 'flex-col-reverse' : ''}`}>
-        {/* Cards */}
-        <div className={`flex -space-x-4 h-20 sm:h-24 relative pointer-events-none ${reverseLayout ? 'mt-2' : 'mb-2'}`}>
-          {player.hand.map((card, idx) => (
-            <Card 
-              key={idx} 
-              card={card} 
-              hidden={!cardsVisible && !player.isHuman && gamePhase !== GamePhase.SHOWDOWN} 
-              className={`transform ${idx === 1 ? 'rotate-6 translate-y-1' : '-rotate-6'} origin-bottom transition-transform duration-500 shadow-xl`}
-              tiny={!player.isHuman} 
-            />
-          ))}
-          {isWinner && (
-            <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]">
-              <Trophy size={40} fill="currentColor" />
+    <div ref={containerRef} className={`relative flex items-center justify-center w-0 h-0 transition-opacity duration-500 ${foldOpacity}`}>
+      
+      {/* 1. The Avatar Cluster (Centered on 0,0 of this container) */}
+      <div className="absolute flex flex-col items-center pointer-events-none transform -translate-x-1/2 -translate-y-1/2">
+          {/* Action Bubble */}
+          {player.actionMessage && (
+            <div className="absolute -top-12 z-50 bg-white text-black font-bold text-xs px-3 py-2 rounded-xl rounded-bl-none shadow-[0_5px_15px_rgba(0,0,0,0.3)] animate-deal border-2 border-black whitespace-nowrap transform -rotate-2 origin-bottom-left">
+              {player.actionMessage}
             </div>
           )}
-        </div>
 
-        {/* Avatar */}
-        <div className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 bg-slate-900 flex items-center justify-center overflow-hidden transition-all duration-300 ${turnGlow} ${winnerGlow} ${player.isActive ? 'border-slate-700' : 'border-red-900'}`}>
-          <img src={player.isHuman ? 'https://api.dicebear.com/7.x/avataaars/svg?seed=hero' : AVATAR_URL(player.avatarSeed || 1)} alt="Avatar" className="w-full h-full object-cover pointer-events-none" />
-          {isDealer && (
-            <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-500 text-slate-900 rounded-full flex items-center justify-center font-black font-poker text-xs border-2 border-white shadow-md z-10">D</div>
-          )}
-        </div>
-      </div>
-
-      {/* Name & Chips - Always at the bottom of the stack visually, or we could flip this too if strictly needed, but usually looks ok below. 
-          Actually for Top players, Name should probably be ABOVE avatar. 
-          Let's just keep it simple: Name is always below avatar for now, unless it overlaps cards in reverse layout.
-      */}
-      <div className={`mt-2 bg-slate-900/90 backdrop-blur-md px-3 py-1 rounded-xl text-center border border-slate-700 min-w-[100px] shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-10 pointer-events-none ${reverseLayout ? 'order-first mb-2' : ''}`}>
-        <div className="text-[10px] sm:text-xs font-bold text-slate-300 truncate max-w-[100px] mx-auto uppercase tracking-wide">{player.name}</div>
-        <div className="text-sm font-mono text-yellow-400 flex items-center justify-center gap-1 font-bold">
-          <Coins size={12} className="text-yellow-500" /> {player.chips}
-        </div>
-        {player.currentBet > 0 && (
-          <div className="text-[10px] text-emerald-400 font-black bg-emerald-950/50 px-2 rounded mt-1 border border-emerald-900/50 inline-block">
-            {player.currentBet}
+          {/* Avatar Image */}
+          <div className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 bg-slate-900 flex items-center justify-center overflow-hidden transition-all duration-300 ${turnGlow} ${winnerGlow} ${player.isActive ? 'border-slate-700' : 'border-red-900'}`}>
+            <img src={player.isHuman ? 'https://api.dicebear.com/7.x/avataaars/svg?seed=hero' : AVATAR_URL(player.avatarSeed || 1)} alt="Avatar" className="w-full h-full object-cover" />
           </div>
-        )}
+
+          {/* Name & Chips */}
+          <div className="mt-2 bg-slate-900/90 backdrop-blur-md px-3 py-1 rounded-xl text-center border border-slate-700 min-w-[100px] shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-10">
+            <div className="text-[10px] sm:text-xs font-bold text-slate-300 truncate max-w-[100px] mx-auto uppercase tracking-wide">{player.name}</div>
+            <div className="text-sm font-mono text-yellow-400 flex items-center justify-center gap-1 font-bold">
+              <Coins size={12} className="text-yellow-500" /> {player.chips}
+            </div>
+          </div>
+          
+          {player.isAllIn && <div className="absolute top-10 font-black text-red-500 text-2xl shadow-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] rotate-12 bg-black/80 px-2 rounded border-2 border-red-600 animate-pulse">ALL IN</div>}
+          {!player.isActive && player.chips > 0 && <div className="absolute top-10 font-black text-slate-500 text-xl shadow-black drop-shadow-md -rotate-12 bg-black/60 px-2 rounded">FOLD</div>}
       </div>
-      
-      {player.isAllIn && <div className="absolute top-10 font-black text-red-500 text-2xl shadow-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] rotate-12 bg-black/80 px-2 rounded border-2 border-red-600 animate-pulse pointer-events-none">ALL IN</div>}
-      {!player.isActive && player.chips > 0 && <div className="absolute top-10 font-black text-slate-500 text-xl shadow-black drop-shadow-md -rotate-12 bg-black/60 px-2 rounded pointer-events-none">FOLD</div>}
+
+      {/* 2. The Hand Cluster (Dynamically Positioned) */}
+      <div ref={handRef} className="absolute z-10 flex flex-col items-center origin-center">
+         {/* Cards */}
+         <div className={`flex -space-x-4 h-20 sm:h-24 relative ${isWinner ? 'scale-110 z-20' : ''}`}>
+            {player.hand.map((card, idx) => (
+              <Card 
+                key={idx} 
+                card={card} 
+                hidden={!cardsVisible && !player.isHuman && gamePhase !== GamePhase.SHOWDOWN} 
+                className={`transform ${idx === 1 ? 'rotate-6 translate-y-1' : '-rotate-6'} origin-bottom shadow-xl`}
+                tiny={!player.isHuman} 
+              />
+            ))}
+            {isWinner && (
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-yellow-400 animate-bounce drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]">
+                <Trophy size={40} fill="currentColor" />
+              </div>
+            )}
+         </div>
+
+         {/* Dealer & Bet */}
+         <div className="relative mt-2 min-h-[20px] flex items-center justify-center">
+             {isDealer && (
+                <div className="absolute -left-8 top-0 w-6 h-6 bg-yellow-500 text-slate-900 rounded-full flex items-center justify-center font-black font-poker text-xs border-2 border-white shadow-md z-10">D</div>
+             )}
+             {player.currentBet > 0 && (
+                <div className="text-[10px] text-emerald-400 font-black bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-900/50 whitespace-nowrap shadow-lg">
+                    {player.currentBet}
+                </div>
+             )}
+         </div>
+      </div>
+
     </div>
   );
 };
@@ -883,6 +930,8 @@ const App: React.FC = () => {
   // 4: Pat (Top Right)
   // 5: Noah (Bottom Right)
   // 6: Rob (Right Middle)
+  
+  // AVATAR POSITIONS (Draggable) - Initial layout
   const BOT_LAYOUTS = [
       { style: "top-1/2 -translate-y-1/2 left-4", reverse: false }, // Nick
       { style: "bottom-[15%] left-10", reverse: false }, // Devin
@@ -1124,7 +1173,7 @@ const App: React.FC = () => {
             ))}
           </div>
 
-          {/* Render Bots (Index 1-7) - Absolute to the main container, NOT clipped */}
+          {/* Render Bots (Index 1-7) */}
           {gameState && gameState.players.slice(1).map((bot, index) => {
             const layout = BOT_LAYOUTS[index];
             return (
@@ -1136,7 +1185,6 @@ const App: React.FC = () => {
                   cardsVisible={false} 
                   gamePhase={gameState.phase} 
                   isWinner={gameState.winners?.some(w => w.id === bot.id)} 
-                  reverseLayout={layout.reverse}
                 />
               </DraggablePlayerWrapper>
             );
@@ -1144,29 +1192,29 @@ const App: React.FC = () => {
 
           {/* Human (Index 0) */}
           <DraggablePlayerWrapper className="bottom-0 sm:bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
-            
-            {/* PlayerSpot */}
             {gameState && human && (
-              <PlayerSpot 
-                player={human} 
-                isDealer={gameState.dealerIndex === 0} 
-                isCurrentTurn={gameState.currentPlayerIndex === 0} 
-                cardsVisible={true} 
-                gamePhase={gameState.phase}
-                isWinner={gameState.winners?.some(w => w.id === human.id)}
-              />
-            )}
-
-            {/* Stats HUD - Positioned to the right */}
-            {human && gameState.phase !== GamePhase.SHOWDOWN && gameState.phase !== GamePhase.GAME_OVER && (
-              <div className="absolute left-[110%] bottom-20 sm:bottom-24 w-max pointer-events-none z-50">
-                 <StatsHUD 
-                   handDesc={humanHandDesc}
-                   potOdds={potOdds}
-                   spr={spr}
-                   handGrade={handGrade}
+              <>
+                 <PlayerSpot 
+                    player={human} 
+                    isDealer={gameState.dealerIndex === 0} 
+                    isCurrentTurn={gameState.currentPlayerIndex === 0} 
+                    cardsVisible={true} 
+                    gamePhase={gameState.phase}
+                    isWinner={gameState.winners?.some(w => w.id === human.id)}
                  />
-              </div>
+
+                 {/* Stats HUD - Positioned to the right */}
+                 {gameState.phase !== GamePhase.SHOWDOWN && gameState.phase !== GamePhase.GAME_OVER && (
+                  <div className="absolute left-[110%] bottom-20 sm:bottom-24 w-max pointer-events-none z-50">
+                     <StatsHUD 
+                       handDesc={humanHandDesc}
+                       potOdds={potOdds}
+                       spr={spr}
+                       handGrade={handGrade}
+                     />
+                  </div>
+                 )}
+              </>
             )}
           </DraggablePlayerWrapper>
           
