@@ -1,3 +1,4 @@
+
 export enum Suit {
   HEARTS = '♥',
   DIAMONDS = '♦',
@@ -42,6 +43,15 @@ export interface Player {
   actionMessage?: string; // NEW: Bubble text (e.g. "Call 20")
 }
 
+export interface HandHistoryEntry {
+  id: string;
+  handNumber: number;
+  winnerNames: string[];
+  winAmount: number;
+  winningHand: string;
+  date: string;
+}
+
 export interface GameState {
   phase: GamePhase;
   pot: number;
@@ -58,6 +68,8 @@ export interface GameState {
   winners?: Player[];         // NEW: Track who won the last hand
   winningHandDesc?: string;   // NEW: Description of winning hand (e.g. "Full House")
   lastPotSize?: number;       // NEW: Amount won
+  handHistory: HandHistoryEntry[]; // NEW: History
+  handCount: number;
 }
 
 export interface Perk {
